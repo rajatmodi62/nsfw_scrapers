@@ -117,15 +117,18 @@ def batch_scrape_urls(url_list):
 # --- COMMAND LINE INTERFACE ---
 if __name__ == "__main__":
     # setup_login()
-
+    with open("to_download_urls.txt") as f:
+        scene_urls = [line.strip() for line in f.readlines()]
     # scene_urls = [
     #     "https://www.sexlikereal.com/scenes/getting-my-face-covered-by-perverted-schoolgirls-vol-2-24472",
     #     # "https://www.sexlikereal.com/scenes/gorgeous-babe-in-your-bed-76781",
     # ]
     result = batch_scrape_urls(scene_urls)
 
-    for k, v in result.items():
+    download_urls = []
+    for done, (k, v) in enumerate(result.items()):
         #     data = dict(v)
+        print(f"Processing {done + 1}/{len(result)}: {k}")
         max_resolution = -1
         resolution_to_link = collections.defaultdict(list)
         encodings = v["data"]["encodings"]
@@ -143,4 +146,7 @@ if __name__ == "__main__":
         # sort by lowest size
         urls = sorted(urls, key=lambda x: x[0])
         url = urls[0][1]
-        print(url)
+        # print(url)
+        download_urls.append(url)
+    with open("slr_download_links.txt", "w") as f:
+        f.write("\n".join(download_urls))
