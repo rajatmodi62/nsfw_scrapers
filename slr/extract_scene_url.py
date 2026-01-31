@@ -1,6 +1,10 @@
+import ast
+import collections
 import json
+import re
 import sys
 import time
+from imaplib import Commands
 
 from playwright.sync_api import sync_playwright
 
@@ -113,17 +117,30 @@ def batch_scrape_urls(url_list):
 # --- COMMAND LINE INTERFACE ---
 if __name__ == "__main__":
     # setup_login()
-    # scene_id = 24472
-    # result = get_scene_json(scene_id)
-    # print("result", result)
-    scene_urls = [
-        "https://www.sexlikereal.com/scenes/dressed-to-impress-76908",
-        # "https://www.sexlikereal.com/scenes/gorgeous-babe-in-your-bed-76781",
-    ]
+
+    # scene_urls = [
+    #     "https://www.sexlikereal.com/scenes/getting-my-face-covered-by-perverted-schoolgirls-vol-2-24472",
+    #     # "https://www.sexlikereal.com/scenes/gorgeous-babe-in-your-bed-76781",
+    # ]
     result = batch_scrape_urls(scene_urls)
 
-    save_urls = []
-    import ast
+    for k, v in result.items():
+        #     data = dict(v)
+        max_resolution = -1
+        resolution_to_link = collections.defaultdict(list)
+        encodings = v["data"]["encodings"]
+        for encoding in encodings:
+            name = encoding["name"]
+            videosources = encoding["videoSources"]
 
-    for scene_json in result:
-        data = ast.literal_eval(scene_json)
+            for source in videosources:
+                resolution = source["resolution"]
+                link = source["url"]
+                size = source["size"]
+                resolution_to_link[resolution].append((size, link))
+                max_resolution = max(max_resolution, resolution)
+        urls = resolution_to_link[max_resolution]
+        # sort by lowest size
+        urls = sorted(urls, key=lambda x: x[0])
+        url = urls[0][1]
+        print(url)
