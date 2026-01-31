@@ -1,72 +1,46 @@
-import re
+import json
+from pathlib import Path
 
-import browser_cookie3
 import requests
 
-
-def get_html_with_cookies(url):
-    cj = browser_cookie3.chrome()
-    response = requests.get(url, cookies=cj)
-    return response.text
+# File to store your persistent login state
+COOKIE_STORAGE = Path("slr_session.json")
 
 
-all_urls = []
+def get_persistent_session():
+    session = requests.Session()
 
-######### scrape the scene page for which one contains ai subs ###############
-#### like this https://www.sexlikereal.com/tags/subtitles-ai-vr?p=200########
+    if COOKIE_STORAGE.exists():
+        # Load the "memory" of your last login
+        with open(COOKIE_STORAGE, "r") as f:
+            session.cookies.update(json.load(f))
+        print("✅ Session restored from persistent storage.")
+    else:
+        # PASTE THE VALUES FROM YOUR IMAGES HERE ONCE
+        initial_cookies = {
+            "refresh_jwt": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3Njk3OTk3OTguMjgxMzI2LCJuYmYiOjE3Njk3OTk3OTguMjgxMzI2LCJleHAiOjE3NzIzOTE3OTguMjgxMzI2LCJzdWIiOiI1ZTE5YzNiMDk3MzZmZTc2ZGMzNTEzMDYiLCJ0b2tlblR5cGUiOiJyZWZyZXNoIiwicHJvamVjdCI6MSwiY2xpZW50VHlwZSI6IndlYiIsInNvdXJjZSI6MSwiaXAiOiI1Mi4xMjQuNDUuMTciLCJyb2xlcyI6WzFdLCJqdGkiOiI2OTdkMDA3NjMyMzUwZjlhYTMwNGMwYmQifQ.uAClgRO8JiZUt-AkTPr5RUMWXQB_8LHhu9wBWNIxldg",
+            "session": "PASTE_VALUE_FROM_IMAGE",
+            "cf_clearance": "SqAkCA2MJCpbFs_jNsL3K8gbvwhr7iKDRXfry_6ZKHM-1767839383-1.2.1.1-P0wYB_bxe1rABN.1FRBkttCOf0T0Z6IzrJOZ6DhjLHz9KEioYti1NA_zn_thetAliXynn7m6jHAZvyuTeq7eYQ258Ujg8EQ9SFjVVslM2Ws7_6c8Ga_S_WFKgxfIbMGz5gLcJOlNFzzGryXWkgHElAugZmJ4n_NT2mXxJQQrEmqzHknKSBnTxYw5D3c9XsMci2IgPr3FSnljI_M7HgHJgFN9wf9SKFNKmABV5rM56jw",
+        }
+        session.cookies.update(initial_cookies)
+        # Save them so you don't have to do this again
+        with open(COOKIE_STORAGE, "w") as f:
+            json.dump(session.cookies.get_dict(), f)
+        print("💾 Initial persistent session saved.")
 
-n_pages = 330
-for done, page in enumerate(range(1, n_pages + 1)):
-    print(f"Processing page {page} of {n_pages} ({done + 1}/{n_pages})")
-    url = f"https://www.sexlikereal.com/tags/subtitles-ai-vr?p={page}"
+    # These headers make your script look like a real browser
+    session.headers.update(
+        {
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) ...",
+            "client-type": "web",
+            "project": "1",
+        }
+    )
+    return session
 
-    cj = browser_cookie3.chrome()
-    response = requests.get(url, cookies=cj)
-    data = response.text
 
-    regex = r'https:(?:\\/\\/|//)www\.sexlikereal\.com\\?/scenes\\?/[^" ]+'
-
-    # Find all occurrences
-    raw_links = re.findall(regex, data)
-
-    # Clean the links (replace \/ with /) and remove duplicates
-    clean_links = []
-    for link in raw_links:
-        normalized = link.replace("\\/", "/").replace("\\", "")
-        if normalized not in clean_links:
-            clean_links.append(normalized)
-            all_urls.append(normalized)
-    print(clean_links)
-    print("done ", done + 1, "/", n_pages)
-####### add .srt links to all_urls#############
-all_urls = list(set(all_urls))
-####### download subtitle for a particular scene ##############
-#### for eg, <https://cdn-vr.sexlikereal.com/subtitles/8727/en/311383_streaming.srt>####
-
-for done, url in enumerate(all_urls):
-    print(f"Processing scene {done + 1} of {len(all_urls)}")
-
-    # url = "https://www.sexlikereal.com/scenes/legal-cast-the-movie-55537"
-    data = get_html_with_cookies(url)
-
-    ############# FIND SRT LINKS IN HTML ##############
-    ######## FILTER ONLY EN ####################
-
-    pattern = r"https?://[0-9a-zA-Z\.\-_/]+?\.srt"
-
-    srt_links = re.findall(pattern, data)
-
-    # # Remove duplicates by converting to a set and back to a list
-    unique_links = list(set(srt_links))
-
-    print("unique links", unique_links)
-    for link in unique_links:
-        if "en" in link:
-            scene_id = link.split("/")[-3] + ".srt"
-            response = requests.get(link)
-
-            # Save the file with the scene ID as the filename
-
-            with open(scene_id, "wb") as f:
-                f.write(response.content)
-            print(f"Downloaded subtitle: {scene_id}")
+# Usage
+s = get_persistent_session()
+# This request now "inherits" your browser's persistent identity
+response = s.get("https://api.sexlikereal.com/v3/scenes/24472/files")
+print(response.json())
